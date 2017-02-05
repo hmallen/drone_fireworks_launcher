@@ -21,6 +21,10 @@ const int buzzPwr = A0;
 const int buzzGnd = A1;
 
 int triggerVal = 0;
+int servoPos;
+
+const int clawOpen = 60;
+const int clawClosed = 110;
 
 void setup() {
   pinMode(primaryRelayPin, OUTPUT); digitalWrite(primaryRelayPin, LOW);
@@ -28,14 +32,24 @@ void setup() {
   pinMode(secondaryRelayPin, OUTPUT); digitalWrite(secondaryRelayPin, LOW);
   pinMode(ledPin, OUTPUT); digitalWrite(ledPin, HIGH);
 
+  Serial.begin(115200);
+
   clawServo.attach(servoPin);
-  clawServo.write(140);
+  servoPos = clawServo.read();
+
+  if (servoPos > clawClosed) {
+    for (int x = (servoPos - 1); x > (clawClosed - 1); x--) {
+      clawServo.write(x);
+      delay(15);
+    }
+  }
+  else if (servoPos < clawClosed) {
+    for (int x = (servoPos + 1); x < (clawClosed + 1); x++) {
+      clawServo.write(x);
+      delay(15);
+    }
+  }
   delay(2000);
-  clawServo.detach();
-
-  Serial.begin(9600);
-
-  delay(10000);
 
   Serial.print("Load munitions...");
   munitionsSetup();
@@ -80,6 +94,22 @@ void loop() {
   }
 }
 
+void munitionsSetup() {
+  servoPos = clawServo.read();
+  for (int x = (servoPos - 1); x > (clawOpen - 1); x--) {
+    clawServo.write(x);
+    delay(15);
+  }
+  delay(5000);
+  servoPos = clawServo.read();
+  for (int x = (servoPos + 1); x < (clawClosed + 1); x++) {
+    clawServo.write(x);
+    delay(15);
+  }
+  delay(2000);
+  clawServo.detach();
+}
+
 int triggerCheck() {
   int buzzPwrVal, buzzGndVal;
   int buzzVal, buzzLoopAvg;
@@ -104,22 +134,17 @@ int triggerCheck() {
   return buzzLoopAvg;
 }
 
-void munitionsSetup() {
-  clawServo.attach(servoPin);
-  clawServo.write(140);
-  delay(5000);
-  clawServo.write(170);
-  delay(2000);
-  clawServo.detach();
-}
-
 void munitionsDrop() {
   Serial.println("Dropping munitions!");
   digitalWrite(secondaryRelayPin, HIGH);
-  // delay(4000);  // Allow time for fuse ignition
+  delay(4000);  // Allow time for fuse ignition
   clawServo.attach(servoPin);
-  clawServo.write(120); // Close to maximum opened travel range for claw
-  delay(2000);
+
+  for (int x = (clawClosed - 1); x > (clawOpen - 1); x--) {
+    clawServo.write(x);
+    delay(15);
+  }
+
   clawServo.detach();
   delay(3000);
   digitalWrite(secondaryRelayPin, LOW);
@@ -131,4 +156,3 @@ void munitionsLaunch() {
   delay(5000);
   digitalWrite(primaryRelayPin, LOW);
 }
-
